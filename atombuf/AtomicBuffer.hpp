@@ -2,6 +2,7 @@
 #ifndef ATOMIC_BUFFER_HPP
 #define ATOMIC_BUFFER_HPP
 
+#include <cstddef> // Include for size_t and nullptr_t
 #include <atomic>
 #include <vector>
 
