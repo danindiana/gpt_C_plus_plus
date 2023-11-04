@@ -1,7 +1,9 @@
+// AtomicBuffer.hpp
+#ifndef ATOMIC_BUFFER_HPP
+#define ATOMIC_BUFFER_HPP
+
 #include <atomic>
-#include <iostream>
 #include <vector>
-#include <thread>
 
 template <typename T>
 class AtomicBuffer {
@@ -42,34 +44,8 @@ public:
         head.store((currentHead + 1) % maxSize, std::memory_order_release);
         return true;
     }
+
+    // Additional utility functions can be added here if necessary
 };
 
-// Example usage
-int main() {
-    AtomicBuffer<int> buffer(10);
-
-    // Producer thread
-    std::thread producer([&buffer]() {
-        for (int i = 0; i < 100; ++i) {
-            while (!buffer.push(i)) {
-                // Wait or handle buffer being full
-            }
-        }
-    });
-
-    // Consumer thread
-    std::thread consumer([&buffer]() {
-        int item;
-        for (int i = 0; i < 100; ++i) {
-            while (!buffer.pop(item)) {
-                // Wait or handle buffer being empty
-            }
-            std::cout << "Consumed: " << item << std::endl;
-        }
-    });
-
-    producer.join();
-    consumer.join();
-
-    return 0;
-}
+#endif // ATOMIC_BUFFER_HPP
