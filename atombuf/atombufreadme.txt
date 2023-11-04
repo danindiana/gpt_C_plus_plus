@@ -356,3 +356,71 @@ And run it with:
 ```
 
 This should compile without errors and run the stress test for the `AtomicBuffer` class.
+
+The output you're seeing is due to the concurrent nature of the producers and consumers writing to the terminal at the same time. This can result in interleaved and jumbled output because the `std::cout` stream is not inherently thread-safe for complete operations like line output. Each individual call to `std::cout` is thread-safe, meaning that characters won't get mixed up in the middle of a call, but if you have multiple calls (like `std::cout << "Producer " << producer_id << " produced item: " << item << std::endl;`), another thread can output something in between those calls.
+
+To fix the interleaved output, you can use a mutex to ensure that only one thread writes to the terminal at a time:
+
+```cpp
+#include <mutex>
+
+std::mutex cout_mutex;
+
+// Inside your producer and consumer functions, lock the mutex before printing:
+std::lock_guard<std::mutex> guard(cout_mutex);
+std::cout << "Producer " << producer_id << " produced item: " << item << std::endl;
+// The lock_guard will automatically release the lock when it goes out of scope.
+```
+
+Regarding the assertion failure, it indicates that the condition `itemsConsumed.load(std::memory_order_relaxed) == PRODUCER_COUNT * ITEMS_PER_PRODUCER` is not true when the assertion is checked. This could be due to several reasons:
+
+1. **Race Condition**: There might be a race condition where the consumers haven't finished consuming all items before the main thread checks the assertion. This could happen if the consumers are slower or if they are waiting for more items to be produced.
+
+2. **Incorrect Counting**: There might be an issue with how items are being counted. Ensure that the increments to `itemsProduced` and `itemsConsumed` are done correctly and that they reflect the actual number of items produced and consumed.
+
+3. **Buffer Overflows or Underflows**: If there's a bug in the `AtomicBuffer` implementation, it could lead to lost or duplicated items, which would cause the counts to be off.
+
+To debug this, you can add more detailed logging to track the number of items produced and consumed by each thread. You can also add checks within the `AtomicBuffer` class to ensure that items are not being overwritten or missed.
+
+Remember, when debugging multi-threaded applications, it's important to consider the synchronization of shared resources and the ordering of operations. The use of `std::memory_order_relaxed` in atomic operations means that there are no synchronization or ordering constraints imposed on other reads or writes, only on the atomic operation itself. This can lead to issues if you're not careful about how different threads interact with shared data.
+
+The output and the assertion failure suggest that there is a problem with the synchronization of the `AtomicBuffer`. Specifically, it appears that multiple consumers are able to consume the same item, which should not be possible. This is indicated by the fact that the total number of consumed items exceeds the number produced (e.g., Consumer 1 and Consumer 2 both consuming item 292).
+
+This issue could be due to a problem in the `AtomicBuffer` implementation, where it is not correctly handling the atomicity of its operations. The buffer should ensure that once an item is consumed, it cannot be consumed again by another consumer.
+
+Here are some steps to troubleshoot and fix the issue:
+
+1. **Review `AtomicBuffer` Implementation**: Check the `push` and `pop` methods of the `AtomicBuffer` class to ensure they are correctly implementing atomic operations. It's crucial that once an item is read from the buffer, it is not accessible to other consumers.
+
+2. **Check for Data Races**: Ensure that there are no data races in your buffer implementation. Use tools like ThreadSanitizer to detect data races in your program.
+
+3. **Use Condition Variables**: If the buffer is implemented using mutexes and condition variables, ensure that the condition variables are being used correctly to signal and wait for state changes in the buffer.
+
+4. **Review Thread Synchronization**: Make sure that all accesses to shared resources are properly synchronized between threads. This includes not only the buffer itself but also any shared counters or flags.
+
+5. **Test with Simpler Scenarios**: Simplify the test case to use fewer producers and consumers to see if the problem persists. This can sometimes make it easier to pinpoint the exact cause of the issue.
+
+6. **Add More Detailed Logging**: If the issue is still not clear, add logging inside the `AtomicBuffer` methods to track every operation and ensure that each item is only consumed once.
+
+Once you have reviewed and potentially corrected the `AtomicBuffer` implementation, re-run the test with detailed logging to verify that the issue has been resolved. The total number of items consumed should exactly match the total number of items produced, with each consumer consuming a unique set of items.
+
+
+The output you've provided indicates that there are multiple `pop` operations happening at the same index, which should not be possible if the buffer is functioning correctly. For example, the item at index 2 (Item: 491) is popped three times, and the item at index 1 (Item: 390) is popped twice. This suggests that there is a critical issue with the synchronization in the `AtomicBuffer` class.
+
+The assertion failure at the end of the output also confirms that the number of items consumed does not match the number of items produced, which is a direct result of the incorrect `pop` operations.
+
+To resolve this issue, you should:
+
+1. **Review the `pop` method**: Ensure that the `pop` method correctly updates the `head` index in a thread-safe manner. It seems that the `head` index is not being updated correctly, allowing multiple consumers to pop the same item.
+
+2. **Ensure Atomic Operations**: Verify that the operations on `head` and `tail` are truly atomic and that there's no moment where these variables can be read or written simultaneously by multiple threads without proper synchronization.
+
+3. **Check the Buffer State Consistency**: The buffer state after each operation should be consistent with the operation performed. If an item is popped, it should no longer be present in the buffer state.
+
+4. **Mutex Locks**: If necessary, use mutex locks to protect the critical sections of the code where the buffer state is modified.
+
+5. **Review Thread Scheduling**: The use of `std::this_thread::yield()` is appropriate for cooperative multitasking, but ensure that it's not leading to a situation where threads are yielding too frequently and causing a live-lock or other scheduling issues.
+
+6. **Consider Using Condition Variables**: If the issue persists, you might want to use condition variables along with mutexes to handle the synchronization more robustly.
+
+Once you have made the necessary changes to ensure that the `pop` method is thread-safe and correctly updates the buffer state, re-run the test. The detailed logging should now show that each item is only popped once, and the assertion at the end of the test should pass, confirming that all items produced have been consumed exactly once.
