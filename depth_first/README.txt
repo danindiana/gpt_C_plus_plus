@@ -1,3 +1,5 @@
+Recommended Program to use in search: FilePatternSearchExcluded.cpp Nov-21-2023
+
 This C++ program performs a file search based on a specified pattern, starting from a given root directory and searching up to a specified depth. It implements an Iterative Deepening Depth-First Search (IDDFS) algorithm. Here's a breakdown of how it functions:
 
 Program Functionality
