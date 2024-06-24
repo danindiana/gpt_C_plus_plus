@@ -2,7 +2,7 @@
 GPT C++ code
 Various C++ files usually compiled using gcc. 
 
-Usually tested and confirmed to work via:
+When and where confirmed to work usually tested via:
 OS: Ubuntu 22.04 jammy
  Kernel: x86_64 Linux 6.2.0-36-generic
  Uptime: 2h 10m
