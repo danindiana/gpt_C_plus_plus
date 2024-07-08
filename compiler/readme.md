@@ -215,3 +215,16 @@ report_issues() {
 }
 
 main
+
+
+Inspired From: Refined Input, Degraded Output:
+The Counterintuitive World of Compiler Behavior
+THEODOROS THEODORIDIS, ETH Zurich, Switzerland
+ZHENDONG SU, ETH Zurich, Switzerland
+
+CCS Concepts: • Software and its engineering → Compilers.
+Additional Key Words and Phrases: Missed Compiler Optimizations, Automated Compiler Testing
+ACM Reference Format:
+Theodoros Theodoridis and Zhendong Su. 2024. Refined Input, Degraded Output: The Counterintuitive
+World of Compiler Behavior. Proc. ACM Program. Lang. 8, PLDI, Article 174 (June 2024), 21 pages. https:
+//doi.org/10.1145/3656404
