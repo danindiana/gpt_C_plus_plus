@@ -216,6 +216,57 @@ report_issues() {
 
 main
 
+Your provided text gives a detailed overview of a technique for detecting optimization inconsistencies in compilers. Below is a more concise version of the text, maintaining the essential details and steps involved in your approach.
+
+---
+
+### Detecting Optimization Inconsistencies in Compilers
+
+#### High-level Overview and Background
+Our approach detects cases where a compiler can optimize an input program but fails with a refined version, which should be easier to optimize. Given an input program \( P \), we can run it and observe parts of its behavior, such as variable value bounds at specific locations, referred to as information \( I \). Injecting \( I \) into \( P \) yields a refined version, \( P' \). We expect that a compiler \( C \) should optimize \( P' \) at least as well as \( P \). If not, we identify an optimization inconsistency.
+
+We refine programs with two kinds of additional information:
+1. **Dead Code Information**: Parts of the code that are unreachable.
+2. **Value Ranges**: Bounds of variable values at specific locations.
+
+These are derived for closed and deterministic programs typically used for compiler testing. We inject the derived information using `__builtin_unreachable`.
+
+To detect inconsistencies, we compare a compiler’s output on the original \( P \) and refined \( P' \) programs using oracles.
+
+#### Program Generation
+We use the C program generator, Csmith, to produce candidate test programs, which are suitable for our approach. Alternatives like YarpGen can also be used.
+
+#### Injecting Additional Information
+We use the `__builtin_unreachable()` extension to indicate that a given location is unreachable, helping the compiler optimize the program. This can be written as an expression using:
+```c
+if (!(EXPR)) __builtin_unreachable();
+```
+For example, `if (!(a == 0)) __builtin_unreachable()` tells the compiler that `a` is always zero at this location. Alternatives include:
+- LLVM’s `__builtin_assume(EXPR)`
+- GCC 13’s `__attribute__((assume(EXPR)))`
+- C++23’s `[[assume(EXPR)]]`
+
+We chose `__builtin_unreachable()` for its availability in older versions of GCC and LLVM.
+
+#### Detection Oracles
+We compare compiler outputs on the original and refined programs using oracles. Possible oracles include:
+- **optdiff checkers**: Detect inconsistencies in generated assembly outputs.
+- **Static Analysis Precision**: Check if precision deteriorates on refined programs.
+- **Runtime Behavior Comparison**: Use tools like CIDetector to determine if refined programs contain more redundant operations.
+
+In our work, we use three oracles:
+1. Significant binary size increase.
+2. DCE (Dead Code Elimination) markers.
+3. Value Range Analysis precision degradation.
+
+#### End-to-end Testing
+Our implementation utilizes:
+- **C-Reduce**: To reduce test cases before reporting to compiler developers.
+- **git bisect**: To bisect regressions and identify compiler changes introducing inconsistencies.
+
+---
+
+This summary provides a clear and concise version of your detailed technique, maintaining the critical points and process flow for detecting optimization inconsistencies in compilers.
 
 Inspired From: Refined Input, Degraded Output:
 The Counterintuitive World of Compiler Behavior
