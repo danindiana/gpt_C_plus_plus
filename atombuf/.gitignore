@@ -1,0 +1,45 @@
+# Compiled binaries
+benchmark
+test_fixed
+atomic_buffer_test
+atomic_buffer_stress_test
+atomic_buffer_detailed_test
+atomic_buffer_logged_test
+atomic_buffer_terminal_test
+atomic_buffer_fixed_test
+atomic_buffer_benchmark
+
+# Build directories
+build/
+cmake-build-*/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+!AtomicBufferConfig.cmake.in
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Object files
+*.o
+*.obj
+
+# Static and shared libraries
+*.a
+*.so
+*.dylib
+*.lib
+*.dll
+
+# Core dumps
+core
+core.*
