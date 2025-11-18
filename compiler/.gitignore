@@ -1,0 +1,74 @@
+# Build directories
+build/
+build-*/
+cmake-build-*/
+out/
+
+# Generated files
+generated/
+output/
+reports/
+*.out
+*.exe
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# Assembly and intermediate files
+*.s
+*.ll
+*.bc
+*.i
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test outputs
+test_results/
+*.log
+*.xml
+
+# Temporary files
+*.tmp
+.*.tmp
+temp/
+tmp/
+
+# Package files
+*.tar.gz
+*.zip
+*.deb
+*.rpm
+
+# Core dumps
+core
+core.*
+
+# Sanitizer outputs
+*.san
+*.asan
+*.ubsan
+*.tsan
+
+# Coverage
+*.gcda
+*.gcno
+*.gcov
+coverage/
+*.profdata
+*.profraw

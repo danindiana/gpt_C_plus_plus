@@ -1,0 +1,226 @@
+name: Compiler Optimization Tester CI
+
+on:
+  push:
+    branches: [ main, develop, claude/** ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+  CMAKE_VERSION: 3.25.0
+
+jobs:
+  build-and-test:
+    name: Build and Test (${{ matrix.os }}, ${{ matrix.compiler }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-22.04]
+        compiler:
+          - { name: gcc, version: 13, cc: gcc-13, cxx: g++-13 }
+          - { name: clang, version: 18, cc: clang-18, cxx: clang++-18 }
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          ninja-build \
+          ${{ matrix.compiler.cc }} \
+          ${{ matrix.compiler.cxx }} \
+          libgtest-dev
+
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: ${{ env.CMAKE_VERSION }}
+
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+          -DCMAKE_C_COMPILER=${{ matrix.compiler.cc }} \
+          -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cxx }} \
+          -DCMAKE_CXX_STANDARD=23 \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+    - name: Build
+      run: cmake --build build --parallel $(nproc)
+
+    - name: Run basic tests
+      run: |
+        cd build
+        ./compiler_tester --version
+        ./compiler_tester --help
+
+    - name: Test script execution
+      run: |
+        chmod +x scripts/test_optimization.sh
+        ./scripts/test_optimization.sh --help
+
+    - name: Upload build artifacts
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs-${{ matrix.os }}-${{ matrix.compiler.name }}
+        path: |
+          build/CMakeFiles/CMakeError.log
+          build/CMakeFiles/CMakeOutput.log
+
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-tidy-18 cppcheck
+
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          -DCMAKE_CXX_COMPILER=clang++-18
+
+    - name: Run cppcheck
+      continue-on-error: true
+      run: |
+        cppcheck --project=build/compile_commands.json \
+          --enable=all \
+          --suppress=missingIncludeSystem \
+          --inline-suppr \
+          --xml \
+          --output-file=cppcheck-report.xml
+
+    - name: Upload cppcheck report
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: cppcheck-report
+        path: cppcheck-report.xml
+
+  sanitizers:
+    name: Sanitizer Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined, thread]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-13 g++-13 cmake ninja-build
+
+    - name: Configure with sanitizer
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_C_COMPILER=gcc-13 \
+          -DCMAKE_CXX_COMPILER=g++-13 \
+          -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -g -O1" \
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=${{ matrix.sanitizer }}"
+
+    - name: Build
+      run: cmake --build build --parallel $(nproc)
+
+    - name: Run tests with sanitizer
+      run: |
+        cd build
+        ./compiler_tester --help
+
+  format-check:
+    name: Code Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install clang-format
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format-18
+
+    - name: Check formatting
+      run: |
+        find include src -name "*.hpp" -o -name "*.cpp" | \
+          xargs clang-format-18 --dry-run --Werror
+
+  documentation:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check documentation files
+      run: |
+        test -f README.md
+        test -f docs/ARCHITECTURE.md
+        test -f docs/USAGE.md
+        test -f docs/API.md
+
+    - name: Validate markdown links
+      uses: gaurav-nelson/github-action-markdown-link-check@v1
+      with:
+        use-quiet-mode: 'yes'
+        config-file: '.github/markdown-link-check-config.json'
+      continue-on-error: true
+
+  release:
+    name: Create Release Build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-13 g++-13 cmake ninja-build
+
+    - name: Build release
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_COMPILER=gcc-13 \
+          -DCMAKE_CXX_COMPILER=g++-13
+        cmake --build build --parallel $(nproc)
+
+    - name: Package
+      run: |
+        cd build
+        cpack -G TGZ
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: build/*.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
