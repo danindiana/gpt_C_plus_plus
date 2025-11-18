@@ -7,6 +7,7 @@ CXXFLAGS := -std=c++23 -Wall -Wextra -Wpedantic -O3 -march=native
 DEBUGFLAGS := -g -O0 -DDEBUG
 INCLUDES := -Iinclude
 LDFLAGS := -lstdc++ -lpthread
+LDFLAGS_ENHANCED := -lstdc++ -lpthread -lssl -lcrypto
 
 # Directories
 SRC_DIR := src
@@ -20,10 +21,12 @@ COMPILER_VERSION := $(shell $(CXX) --version | head -n1)
 
 # Targets
 SIMPLE_TARGET := $(BIN_DIR)/dfs-search
+ENHANCED_TARGET := $(BIN_DIR)/dfs-enhanced
 IDDFS_TARGET := $(BIN_DIR)/iddfs-search
 
 # Source files
 SIMPLE_SRC := $(SRC_DIR)/dfs_simple.cpp
+ENHANCED_SRC := $(SRC_DIR)/dfs_enhanced.cpp
 IDDFS_SRC := $(SRC_DIR)/iddfs_main.cpp
 DFS_SRC := $(SRC_DIR)/dfs_main.cpp
 
@@ -37,12 +40,18 @@ YELLOW := \033[0;33m
 BLUE := \033[0;34m
 NC := \033[0m # No Color
 
-.PHONY: all clean debug help info install test examples
+.PHONY: all clean debug help info install test examples enhanced benchmark
 
 # Default target
 all: info dirs $(SIMPLE_TARGET)
 	@echo "$(GREEN)✓ Build complete!$(NC)"
 	@echo "$(BLUE)Run: $(SIMPLE_TARGET) --help$(NC)"
+
+# Build all targets including enhanced version
+enhanced: info dirs $(SIMPLE_TARGET) $(ENHANCED_TARGET)
+	@echo "$(GREEN)✓ Enhanced build complete!$(NC)"
+	@echo "$(BLUE)Simple: $(SIMPLE_TARGET)$(NC)"
+	@echo "$(BLUE)Enhanced: $(ENHANCED_TARGET)$(NC)"
 
 # Create build directories
 dirs:
@@ -54,22 +63,40 @@ $(SIMPLE_TARGET): $(SIMPLE_SRC) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $< -o $@ $(LDFLAGS)
 	@echo "$(GREEN)✓ Built: $@$(NC)"
 
+# Enhanced executable with all features
+$(ENHANCED_TARGET): $(ENHANCED_SRC) $(HEADERS)
+	@echo "$(YELLOW)Compiling enhanced version...$(NC)"
+	@echo "$(YELLOW)Dependencies: OpenSSL, pthread$(NC)"
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $< -o $@ $(LDFLAGS_ENHANCED) || \
+	(echo "$(RED)✗ Build failed. Please install OpenSSL: sudo apt-get install libssl-dev$(NC)" && false)
+	@echo "$(GREEN)✓ Built: $@$(NC)"
+
 # Debug build
 debug: CXXFLAGS += $(DEBUGFLAGS)
 debug: clean dirs $(SIMPLE_TARGET)
 	@echo "$(GREEN)✓ Debug build complete$(NC)"
 
 # Install to /usr/local/bin (requires sudo)
-install: all
+install: enhanced
 	@echo "$(YELLOW)Installing to /usr/local/bin...$(NC)"
 	@sudo cp $(SIMPLE_TARGET) /usr/local/bin/dfs-search
+	@sudo cp $(ENHANCED_TARGET) /usr/local/bin/dfs-enhanced 2>/dev/null || true
 	@sudo chmod +x /usr/local/bin/dfs-search
+	@sudo chmod +x /usr/local/bin/dfs-enhanced 2>/dev/null || true
+	@echo "$(YELLOW)Installing man page...$(NC)"
+	@sudo mkdir -p /usr/local/share/man/man1
+	@sudo cp man/dfs-search.1 /usr/local/share/man/man1/
+	@sudo gzip -f /usr/local/share/man/man1/dfs-search.1
+	@sudo mandb -q 2>/dev/null || true
 	@echo "$(GREEN)✓ Installed successfully$(NC)"
+	@echo "$(BLUE)Try: man dfs-search$(NC)"
 
 # Uninstall
 uninstall:
 	@echo "$(YELLOW)Removing from /usr/local/bin...$(NC)"
 	@sudo rm -f /usr/local/bin/dfs-search
+	@sudo rm -f /usr/local/bin/dfs-enhanced
+	@sudo rm -f /usr/local/share/man/man1/dfs-search.1.gz
 	@echo "$(GREEN)✓ Uninstalled$(NC)"
 
 # Clean build artifacts
@@ -116,6 +143,24 @@ examples: all
 	@echo ""
 	@echo "$(BLUE)===================================$(NC)"
 
+# Run benchmarks
+benchmark: all
+	@echo "$(BLUE)===================================$(NC)"
+	@echo "$(BLUE)    Performance Benchmarks$(NC)"
+	@echo "$(BLUE)===================================$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Test 1: Search for *.cpp files (depth 10)$(NC)"
+	@time $(SIMPLE_TARGET) "*.cpp" ./src 10 > /dev/null
+	@echo ""
+	@echo "$(YELLOW)Test 2: Search for *.hpp files (depth 5)$(NC)"
+	@time $(SIMPLE_TARGET) "*.hpp" ./include 5 > /dev/null
+	@echo ""
+	@echo "$(YELLOW)Test 3: Deep search for *.md files (depth 15)$(NC)"
+	@time $(SIMPLE_TARGET) "*.md" . 15 > /dev/null || true
+	@echo ""
+	@echo "$(GREEN)✓ Benchmark complete$(NC)"
+	@echo "$(BLUE)===================================$(NC)"
+
 # Help target
 help:
 	@echo "$(BLUE)===================================$(NC)"
@@ -123,15 +168,17 @@ help:
 	@echo "$(BLUE)===================================$(NC)"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  $(GREEN)make$(NC)          - Build release version"
-	@echo "  $(GREEN)make debug$(NC)    - Build debug version"
-	@echo "  $(GREEN)make clean$(NC)    - Remove build artifacts"
-	@echo "  $(GREEN)make install$(NC)  - Install to system (requires sudo)"
-	@echo "  $(GREEN)make uninstall$(NC)- Remove from system"
-	@echo "  $(GREEN)make test$(NC)     - Run test suite"
-	@echo "  $(GREEN)make examples$(NC) - Show usage examples"
-	@echo "  $(GREEN)make info$(NC)     - Show build configuration"
-	@echo "  $(GREEN)make help$(NC)     - Show this help"
+	@echo "  $(GREEN)make$(NC)           - Build release version"
+	@echo "  $(GREEN)make enhanced$(NC)  - Build enhanced version with all features"
+	@echo "  $(GREEN)make debug$(NC)     - Build debug version"
+	@echo "  $(GREEN)make clean$(NC)     - Remove build artifacts"
+	@echo "  $(GREEN)make install$(NC)   - Install to system (requires sudo)"
+	@echo "  $(GREEN)make uninstall$(NC) - Remove from system"
+	@echo "  $(GREEN)make test$(NC)      - Run test suite"
+	@echo "  $(GREEN)make benchmark$(NC) - Run performance benchmarks"
+	@echo "  $(GREEN)make examples$(NC)  - Show usage examples"
+	@echo "  $(GREEN)make info$(NC)      - Show build configuration"
+	@echo "  $(GREEN)make help$(NC)      - Show this help"
 	@echo ""
 	@echo "$(BLUE)===================================$(NC)"
 

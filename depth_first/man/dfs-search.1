@@ -1,0 +1,206 @@
+.TH DFS-SEARCH 1 "2025" "DFS Search Tools 3.0" "User Commands"
+.SH NAME
+dfs-search \- depth-first search file finder with modern C++20/23
+.SH SYNOPSIS
+.B dfs-search
+[\fIOPTIONS\fR]
+.I pattern
+[\fIdirectory\fR]
+.SH DESCRIPTION
+.B dfs-search
+performs depth-first search through directory hierarchies to find files
+matching specified patterns. It supports wildcard patterns, regex matching,
+parallel execution, multiple output formats, and advanced features like
+duplicate detection and content searching.
+
+Built with modern C++20/23 features for high performance and ease of use.
+
+.SH OPTIONS
+.TP
+.BR \-d ", " \-\-depth " " \fIN\fR
+Set maximum search depth (default: 10)
+.TP
+.BR \-r ", " \-\-regex
+Use regular expression pattern matching instead of wildcards
+.TP
+.BR \-v ", " \-\-verbose
+Enable verbose output showing search progress and errors
+.TP
+.BR \-p ", " \-\-parallel
+Enable parallel search using multiple threads
+.TP
+.BR \-t ", " \-\-threads " " \fIN\fR
+Number of threads to use for parallel search (default: hardware_concurrency)
+.TP
+.BR \-f ", " \-\-format " " \fIFMT\fR
+Output format: plain, colored, json, xml, csv (default: colored)
+.TP
+.BR \-D ", " \-\-duplicates
+Find and report duplicate files based on content hash
+.TP
+.BR \-c ", " \-\-content " " \fIPATTERN\fR
+Search file contents for specified pattern (uses memory-mapped I/O)
+.TP
+.BR \-C ", " \-\-config " " \fIFILE\fR
+Load configuration from specified file
+.TP
+.BR \-e ", " \-\-exclude " " \fIPATH\fR
+Exclude directory path from search (can be specified multiple times)
+.TP
+.BR \-h ", " \-\-help
+Display help message and exit
+
+.SH PATTERN MATCHING
+.SS Wildcard Patterns
+.TP
+.B *.txt
+Match all files ending with .txt
+.TP
+.B test*
+Match all files starting with 'test'
+.TP
+.B *config*
+Match all files containing 'config'
+.TP
+.B *
+Match all files
+
+.SS Regular Expressions
+Use the
+.B \-r
+flag to enable regex pattern matching:
+.TP
+.B .*\\.cpp
+Match all .cpp files
+.TP
+.B test_.*\\.txt
+Match files like test_foo.txt, test_bar.txt
+.TP
+.B [0-9]{4}-[0-9]{2}-[0-9]{2}\\.log
+Match date-formatted log files
+
+.SH OUTPUT FORMATS
+.TP
+.B plain
+Simple text output without colors
+.TP
+.B colored
+Colored terminal output with emoji and formatting (default)
+.TP
+.B json
+JSON format suitable for scripting and processing
+.TP
+.B xml
+XML format for integration with other tools
+.TP
+.B csv
+CSV format for spreadsheet import
+
+.SH CONFIGURATION FILE
+.B dfs-search
+looks for configuration files in the following order:
+.RS
+.IP \(bu 2
+./.dfsrc
+.IP \(bu 2
+~/.dfsrc
+.IP \(bu 2
+/etc/dfsrc
+.RE
+
+Configuration file format (key=value):
+.RS
+.nf
+# Maximum search depth
+max_depth=15
+
+# Enable parallel search
+parallel=true
+threads=8
+
+# Output format
+format=json
+
+# Excluded paths
+exclude=/proc
+exclude=/sys
+exclude=/tmp
+.fi
+.RE
+
+.SH EXAMPLES
+.TP
+.B dfs-search '*.txt' /home/user
+Find all .txt files in /home/user with default depth
+.TP
+.B dfs-search -r '.*\\.cpp' -d 15 ./src
+Find all .cpp files using regex, searching up to depth 15
+.TP
+.B dfs-search -p -t 8 '*.log' /var/log
+Parallel search for .log files using 8 threads
+.TP
+.B dfs-search --format json '*.conf' /etc > results.json
+Output results in JSON format to a file
+.TP
+.B dfs-search -D '*.jpg' ~/Pictures
+Find and report duplicate JPEG files
+.TP
+.B dfs-search -c 'TODO' '*.cpp' ./src
+Find .cpp files containing the text 'TODO'
+.TP
+.B dfs-search -e /tmp -e /var '*.txt' /
+Search entire filesystem excluding /tmp and /var
+
+.SH FILES
+.TP
+.I ~/.dfsrc
+User configuration file
+.TP
+.I /etc/dfsrc
+System-wide configuration file
+
+.SH ENVIRONMENT
+.TP
+.B HOME
+Used to locate ~/.dfsrc configuration file
+
+.SH EXIT STATUS
+.TP
+.B 0
+Files found successfully
+.TP
+.B 1
+No files found or error occurred
+
+.SH PERFORMANCE
+.B dfs-search
+is optimized for performance with:
+.RS
+.IP \(bu 2
+Compiled with -O3 -march=native optimization flags
+.IP \(bu 2
+Memory-mapped I/O for content searching
+.IP \(bu 2
+Multi-threaded parallel search capability
+.IP \(bu 2
+Efficient path exclusion filtering
+.RE
+
+Typical performance: 10,000-15,000 files/second on modern hardware
+
+.SH SEE ALSO
+.BR find (1),
+.BR grep (1),
+.BR fd (1),
+.BR ripgrep (1)
+
+.SH BUGS
+Report bugs at: https://github.com/danindiana/gpt_C_plus_plus/issues
+
+.SH AUTHOR
+Written by the gpt_C_plus_plus project contributors.
+
+.SH COPYRIGHT
+Copyright © 2025 DFS Search Tools Contributors
+.br
+Licensed under the MIT License.
