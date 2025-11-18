@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, claude/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler:
+          - { cc: gcc-11, cxx: g++-11 }
+          - { cc: gcc-12, cxx: g++-12 }
+          - { cc: clang-14, cxx: clang++-14 }
+          - { cc: clang-15, cxx: clang++-15 }
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build ${{ matrix.compiler.cxx }}
+
+    - name: Configure CMake
+      env:
+        CC: ${{ matrix.compiler.cc }}
+        CXX: ${{ matrix.compiler.cxx }}
+      run: |
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DMLC_BUILD_TESTS=ON \
+          -DMLC_BUILD_EXAMPLES=ON \
+          -DMLC_WARNINGS_AS_ERRORS=ON
+
+    - name: Build
+      run: cmake --build build -j
+
+    - name: Test
+      run: |
+        cd build
+        ctest --output-on-failure -j
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: brew install cmake ninja
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DMLC_BUILD_TESTS=ON \
+          -DMLC_BUILD_EXAMPLES=ON
+
+    - name: Build
+      run: cmake --build build -j
+
+    - name: Test
+      run: |
+        cd build
+        ctest --output-on-failure -j
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure CMake
+      run: |
+        cmake -B build `
+          -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
+          -DMLC_BUILD_TESTS=ON `
+          -DMLC_BUILD_EXAMPLES=ON
+
+    - name: Build
+      run: cmake --build build --config $env:BUILD_TYPE -j
+
+    - name: Test
+      run: |
+        cd build
+        ctest --output-on-failure -C $env:BUILD_TYPE -j
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build clang-15
+
+    - name: Configure with Sanitizers
+      env:
+        CC: clang-15
+        CXX: clang++-15
+      run: |
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DMLC_BUILD_TESTS=ON \
+          -DMLC_ENABLE_SANITIZERS=ON
+
+    - name: Build
+      run: cmake --build build -j
+
+    - name: Test with Sanitizers
+      run: |
+        cd build
+        ctest --output-on-failure -j
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build g++-12 lcov
+
+    - name: Configure with Coverage
+      env:
+        CC: gcc-12
+        CXX: g++-12
+      run: |
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DMLC_BUILD_TESTS=ON \
+          -DCMAKE_CXX_FLAGS="--coverage"
+
+    - name: Build
+      run: cmake --build build -j
+
+    - name: Test
+      run: |
+        cd build
+        ctest --output-on-failure -j
+
+    - name: Generate Coverage
+      run: |
+        cd build
+        lcov --capture --directory . --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' '*/tests/*' --output-file coverage.info
+        lcov --list coverage.info
+
+  format-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install clang-format
+      run: sudo apt-get install -y clang-format-15
+
+    - name: Check formatting
+      run: |
+        find include src tests examples -name "*.hpp" -o -name "*.cpp" | \
+        xargs clang-format-15 --dry-run --Werror

@@ -1,0 +1,86 @@
+# Build directories
+build/
+build-*/
+cmake-build-*/
+out/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+!cmake/*.cmake
+!cmake/*.cmake.in
+
+# Compiled files
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+*.exe
+*.out
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test outputs
+Testing/
+CTestTestfile.cmake
+
+# Package files
+*.deb
+*.rpm
+*.tar.gz
+*.zip
+
+# Coverage
+*.gcov
+*.gcda
+*.gcno
+coverage/
+*.lcov
+
+# Sanitizer outputs
+*.log
+
+# Binary outputs
+bin/
+lib/
+
+# Documentation build
+docs/_build/
+docs/html/
+docs/latex/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Profiling
+*.prof
+perf.data
+perf.data.old
+
+# Clang tools
+.clang-format
+.clang-tidy
+compile_commands.json
