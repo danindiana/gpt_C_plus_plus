@@ -1,0 +1,56 @@
+# Build directories
+build/
+build-*/
+cmake-build-*/
+
+# Compiled files
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+compile_commands.json
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test outputs
+Testing/
+*.gcda
+*.gcno
+*.gcov
+coverage.info
+coverage_html/
+
+# Documentation
+docs/html/
+docs/latex/
+docs/xml/
+
+# Dependencies
+third_party/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Binary outputs
+examples/simple_rag
+examples/document_retrieval
+examples/train_rag
+examples/mips_benchmark
+tests/realm_tests
