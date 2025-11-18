@@ -1,0 +1,42 @@
+# Build directories
+build/
+bin/
+lib/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+!cmake/FortunaConfig.cmake.in
+
+# Compiled binaries
+*.out
+*.exe
+*.o
+*.a
+*.so
+*.dylib
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+Testing/
+CTestTestfile.cmake
+
+# Package files
+*.deb
+*.rpm
+*.tar.gz
+*.zip
