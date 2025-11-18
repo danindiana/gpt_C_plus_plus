@@ -1,0 +1,120 @@
+version: '3.8'
+
+#
+# PIPER on Tenstorrent Greyskull - Docker Compose Configuration
+#
+# Usage:
+#   Build:  docker-compose build
+#   Run:    docker-compose up piper
+#   Shell:  docker-compose run --rm piper bash
+#   Bench:  docker-compose run --rm benchmark
+#
+
+services:
+  # Main PIPER service
+  piper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: piper
+    image: piper-greyskull:latest
+    container_name: piper-greyskull
+
+    # Device access
+    devices:
+      - /dev/tenstorrent0:/dev/tenstorrent0  # Greyskull device
+
+    # Capabilities for hardware access
+    cap_add:
+      - SYS_RAWIO   # PCIe access
+      - SYS_ADMIN   # HugePages management
+
+    # Volumes
+    volumes:
+      - /dev/hugepages:/dev/hugepages  # HugePages
+      - ./examples:/home/ttuser/PIPER/examples
+      - ./benchmark:/home/ttuser/PIPER/benchmark
+      - ./docs:/home/ttuser/PIPER/docs
+      - piper-data:/home/ttuser/data  # Persistent data
+
+    # Environment
+    environment:
+      - TT_METAL_HOME=/home/ttuser/tt-metal
+      - ARCH_NAME=grayskull
+      - PYTHONUNBUFFERED=1
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 32G
+        reservations:
+          memory: 16G
+
+    # Networking
+    network_mode: host
+
+    # Keep container running
+    stdin_open: true
+    tty: true
+
+    # Default command
+    command: /bin/bash
+
+  # Benchmark runner
+  benchmark:
+    extends: piper
+    container_name: piper-benchmark
+    working_dir: /home/ttuser/PIPER/benchmark
+    command: >
+      /bin/bash -c "
+        source ~/tt-env/bin/activate &&
+        python criteo_preprocessing.py --iterations 100
+      "
+
+  # Development environment with Jupyter
+  dev:
+    extends: piper
+    container_name: piper-dev
+    ports:
+      - "8888:8888"  # Jupyter
+      - "6006:6006"  # TensorBoard
+    command: >
+      /bin/bash -c "
+        source ~/tt-env/bin/activate &&
+        jupyter lab --ip=0.0.0.0 --no-browser --allow-root
+      "
+
+  # Monitoring service
+  monitor:
+    extends: piper
+    container_name: piper-monitor
+    working_dir: /home/ttuser/PIPER/monitoring
+    command: >
+      /bin/bash -c "
+        source ~/tt-env/bin/activate &&
+        python monitor.py --interval 1 --duration 3600
+      "
+
+  # Testing service
+  test:
+    extends: piper
+    container_name: piper-test
+    working_dir: /home/ttuser/PIPER
+    command: >
+      /bin/bash -c "
+        source ~/tt-env/bin/activate &&
+        pytest tests/ -v --cov=. --cov-report=html
+      "
+
+volumes:
+  piper-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/data
+      o: bind
+
+networks:
+  default:
+    name: piper-network
