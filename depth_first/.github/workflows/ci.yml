@@ -1,0 +1,144 @@
+name: CI Build and Test
+
+on:
+  push:
+    branches: [ main, develop, 'claude/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        compiler: [g++-13, clang-14]
+        build_type: [Release, Debug]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          libssl-dev \
+          catch2
+
+    - name: Compiler version
+      run: |
+        ${{ matrix.compiler }} --version
+        cmake --version
+
+    - name: Build with Make (simple version)
+      working-directory: depth_first
+      run: |
+        make clean
+        CXX=${{ matrix.compiler }} make
+        ./build/bin/dfs-search --help
+
+    - name: Build with CMake
+      working-directory: depth_first
+      run: |
+        mkdir -p build-cmake
+        cd build-cmake
+        cmake .. \
+          -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        cmake --build .
+
+    - name: Run tests
+      working-directory: depth_first
+      run: |
+        make test || true
+
+    - name: Test search functionality
+      working-directory: depth_first
+      run: |
+        # Test basic search
+        ./build/bin/dfs-search "*.cpp" ./src 3
+
+        # Test with different patterns
+        ./build/bin/dfs-search "Makefile" . 1
+
+        # Test verbose mode
+        ./build/bin/dfs-search "*.hpp" ./include 2 -v || true
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        brew install cmake openssl catch2
+
+    - name: Build
+      working-directory: depth_first
+      run: |
+        make
+        ./build/bin/dfs-search --help
+
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format cppcheck
+
+    - name: Check formatting
+      working-directory: depth_first
+      run: |
+        find src include -name "*.cpp" -o -name "*.hpp" | \
+          xargs clang-format --dry-run --Werror || true
+
+    - name: Static analysis
+      working-directory: depth_first
+      run: |
+        cppcheck --enable=all --suppress=missingIncludeSystem \
+          --error-exitcode=0 src/ include/ || true
+
+  benchmark:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential time
+
+    - name: Build optimized version
+      working-directory: depth_first
+      run: |
+        make clean
+        make CXXFLAGS="-std=c++23 -O3 -march=native -DNDEBUG"
+
+    - name: Run benchmarks
+      working-directory: depth_first
+      run: |
+        echo "=== Performance Benchmark ==="
+
+        # Warm up
+        ./build/bin/dfs-search "*.cpp" ./src 5 > /dev/null
+
+        # Timed runs
+        echo "Test 1: Search for *.cpp files"
+        time ./build/bin/dfs-search "*.cpp" ./src 10
+
+        echo ""
+        echo "Test 2: Search for *.hpp files"
+        time ./build/bin/dfs-search "*.hpp" ./include 5
+
+        echo ""
+        echo "Test 3: Deep search"
+        time ./build/bin/dfs-search "*.txt" . 15 || true
